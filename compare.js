@@ -69,6 +69,18 @@ class ImageComparer {
                     .seekInput(time)
                     .output(outputFile)
                     .outputOptions('-vframes 1')
+                    .on('stdout', line => {
+                        Logger.debug(line);
+                        if (line.includes('Output file is empty, nothing was encoded')) {
+                            reject(line);
+                        }
+                    })
+                    .on('stderr', line => {
+                        Logger.debug(line);
+                        if (line.includes('Output file is empty, nothing was encoded')) {
+                            reject(line);
+                        }
+                    })
                     .on('end', () => resolve(outputFile))
                     .on('error', reject)
                     .run();
@@ -91,25 +103,33 @@ class ImageComparer {
     }
 
     async isFake(videoPath) {
+    
         if (!this._initialised) {
             await this._initialiseExamples();
         }
 
         Logger.info(`Checking ${videoPath}...`);
-        const videoDuration = await this._computeVideoDuration(videoPath);
-        const screenshotTimes = [videoDuration / 4, videoDuration / 2, (3 * videoDuration) / 4];
-    
-        const screenshotPrefix = createHash('md5').update(videoPath).digest('hex');
-        const screenshots = await this._extractScreenshots(videoPath, screenshotTimes, screenshotPrefix);
-    
-        const matches = await this._checkImagesForMatch(screenshots);
-        await this._deleteScreenshots(screenshots);
-    
-        if (matches.length > 0) {
-            Logger.error(`Fake found.\n\tFile: ${videoPath}\n\tMatch: ${matches.join(', ')}`);
-            return true;
+
+        try {
+            const videoDuration = await this._computeVideoDuration(videoPath);
+            const screenshotTimes = [videoDuration / 4, videoDuration / 2, (3 * videoDuration) / 4];
+        
+            const screenshotPrefix = createHash('md5').update(videoPath).digest('hex');
+            const screenshots = await this._extractScreenshots(videoPath, screenshotTimes, screenshotPrefix);
+        
+            const matches = await this._checkImagesForMatch(screenshots);
+            await this._deleteScreenshots(screenshots);
+        
+            if (matches.length > 0) {
+                Logger.error(`Fake found.\n\tFile: ${videoPath}\n\tMatch: ${matches.join(', ')}`);
+                return true;
+            }
+            Logger.debug(`Video is not a fake.`);
+        } catch(e) {
+            Logger.warn(`File ${videoPath} is corrupt, or could not be read.`);
+            Logger.debug(e);
         }
-        Logger.debug(`Video is not a fake.`);
+
         return false;
     }
 }
