@@ -109,7 +109,7 @@ class ImageComparer {
             Logger.error(`Fake found.\n\tFile: ${videoPath}\n\tMatch: ${matches.join(', ')}`);
             return true;
         }
-        Logger.log(`Video is not a fake.`);
+        Logger.debug(`Video is not a fake.`);
         return false;
     }
 }
